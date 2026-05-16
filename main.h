@@ -13,4 +13,16 @@ public:
     std::map<std::string, std::string> read();
 };
 
+enum class State {
+    Start,              // before {
+    ExpectKeyOrEnd,     // after {
+    InKey,              // inside "key"
+    ExpectColon,        // after key
+    ExpectValue,        // after :
+    InValue,            // inside "value"
+    ExpectCommaOrEnd,   // after value
+    End,
+    Error
+};
+
 #endif //JSON_PARSER_MAIN_H
