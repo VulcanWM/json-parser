@@ -3,6 +3,9 @@
 #include "main.h"
 #include <fstream>
 
+// escape quotes not handled
+// trailing comma bug
+
 JSONParser::JSONParser(std::string f) : file_name(std::move(f)) {}
 
 JSONParser::JSONParser() : JSONParser("input.json") {}
@@ -18,6 +21,7 @@ std::map<std::string, std::string> JSONParser::read() {
     std::string current_value;
     bool parsing_error = false;
     bool parsing_finished = false;
+    bool has_been_written = true;
 
     bool in_json = false;
     bool in_key = false;
@@ -43,8 +47,10 @@ std::map<std::string, std::string> JSONParser::read() {
         else if (chr == '{' && in_json)
             parsing_error = true;
 
-        else if (chr == '"' && !in_key && !colon_seen && !in_value)
+        else if (chr == '"' && !in_key && !colon_seen && !in_value) {
             in_key = true;
+            has_been_written = false;
+        }
 
         else if (chr == '"' && in_key && !colon_seen && !in_value)
             in_key = false;
@@ -63,13 +69,16 @@ std::map<std::string, std::string> JSONParser::read() {
 
         else if (chr == ',' && colon_seen && !in_key && !in_value) {
             colon_seen = false;
-            json.insert({current_key, current_value});
-            current_key = "";
-            current_value = "";
+            json[current_key] = current_value;
+            current_key.clear();
+            current_value.clear();
+            has_been_written = true;
         }
         else if (in_json && chr == '}') {
             parsing_finished = true;
-            json[current_key] = current_value;
+            if (!has_been_written) {
+                json[current_key] = current_value;
+            }
         }
     }
 
