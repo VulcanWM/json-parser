@@ -3,9 +3,6 @@
 #include "main.h"
 #include <fstream>
 
-// escape quotes not handled
-// trailing comma bug
-
 JSONParser::JSONParser(std::string f) : file_name(std::move(f)) {}
 
 JSONParser::JSONParser() : JSONParser("input.json") {}
@@ -34,6 +31,25 @@ std::map<std::string, std::string> JSONParser::read() {
     while (file.get(chr) && parsing_error == false && parsing_finished == false) {
         if (std::isspace(chr) && !in_key && !in_value)
             continue;
+
+        if (in_key && chr == '\\' && !escape){
+            escape = true;
+            continue;
+        }
+
+        if (in_value && chr == '\\' && !escape) {
+            escape = true;
+            continue;
+        }
+
+        if (escape) {
+            if (in_key)
+                current_key.push_back(chr);
+            else if (in_value)
+                current_value.push_back(chr);
+            escape = false;
+            continue;
+        }
 
         if (in_key && chr != '"')
             current_key.push_back(chr);
