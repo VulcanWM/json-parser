@@ -1,11 +1,40 @@
 #include <iostream>
+#include <utility>
+#include "main.h"
+#include <fstream>
 
-// TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
-int main() {
-    // TIP Press <shortcut actionId="RenameElement"/> when your caret is at the <b>lang</b> variable name to see how CLion can help you rename it.
+JSONParser::JSONParser(std::string f) : file_name(std::move(f)) {}
 
-   std::cout << "hi";
+JSONParser::JSONParser() : JSONParser("input.json") {}
+
+std::map<std::string, std::string> JSONParser::read() {
+    std::ifstream file(file_name);
+    std::map<std::string, std::string> map;
+    std::string current_key;
+    std::string current_value;
+    bool in_json = false;
+    bool in_key = false;
+    bool in_value = false;
+    bool colon_seen = false;
+
+    char ch;
+
+    std::cout << "Full file content:\n";
+    while (file.get(ch)) {
+        std::cout << ch;
+    }
+
+    return map;
+}
+
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        std::cout << "usage: ./program <filename>\n";
+        return 1;
+    }
+
+    JSONParser j(argv[1]);
+    std::map<std::string, std::string> p = j.read();
 
     return 0;
-    // TIP See CLion help at <a href="https://www.jetbrains.com/help/clion/">jetbrains.com/help/clion/</a>. Also, you can try interactive lessons for CLion by selecting 'Help | Learn IDE Features' from the main menu.
 }
