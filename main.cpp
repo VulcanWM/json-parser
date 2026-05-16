@@ -9,6 +9,10 @@ JSONParser::JSONParser() : JSONParser("input.json") {}
 
 std::map<std::string, std::string> JSONParser::read() {
     std::ifstream file(file_name);
+
+    if (!file) {
+        throw std::runtime_error("failed to open file");
+    }
     std::map<std::string, std::string> json;
     std::string current_key;
     std::string current_value;
@@ -19,55 +23,58 @@ std::map<std::string, std::string> JSONParser::read() {
     bool in_key = false;
     bool in_value = false;
     bool colon_seen = false;
+    bool escape = false;
 
     char chr;
 
     while (file.get(chr) && parsing_error == false && parsing_finished == false) {
+        if (std::isspace(chr) && !in_key && !in_value)
+            continue;
 
-        if (in_key == true) {
+        if (in_key && chr != '"')
             current_key.push_back(chr);
-        }
-        else if (in_value == true) {
-            current_value.push_back(chr);
-        }
 
-        if (chr == '{' and in_json == false) {
+        else if (in_value && chr != '"')
+            current_value.push_back(chr);
+
+        if (chr == '{' && !in_json)
             in_json = true;
-        }
-        else if (chr == '{' && in_json == true) {
+
+        else if (chr == '{' && in_json)
             parsing_error = true;
-        }
-        else if (chr == '"' && in_key == false && colon_seen == false && in_value == false) {
+
+        else if (chr == '"' && !in_key && !colon_seen && !in_value)
             in_key = true;
-        }
-        else if (chr == '"' && in_key == true && colon_seen == false && in_value == false) {
-            current_key.pop_back();
+
+        else if (chr == '"' && in_key && !colon_seen && !in_value)
             in_key = false;
-        }
-        else if (chr == ':' && in_key == false && colon_seen == false && in_value == false) {
+
+        else if (chr == ':' && !in_key && !colon_seen && !in_value)
             colon_seen = true;
-        }
-        else if (chr == ':' && colon_seen == true) {
+
+        else if (chr == ':' && colon_seen)
             parsing_error = true;
-        }
-        else if (chr == '"' && colon_seen == true && in_key == false && in_value == false) {
+
+        else if (chr == '"' && colon_seen && !in_key && !in_value)
             in_value = true;
-        }
-        else if (chr == '"' && colon_seen == true && in_key == false && in_value == true) {
-            current_value.pop_back();
+
+        else if (chr == '"' && colon_seen && !in_key && in_value)
             in_value = false;
-        }
-        else if (chr == ',' && colon_seen == true && in_key == false && in_value == false) {
+
+        else if (chr == ',' && colon_seen && !in_key && !in_value) {
             colon_seen = false;
             json.insert({current_key, current_value});
             current_key = "";
             current_value = "";
         }
-        else if (in_json == true && chr == '}') {
+        else if (in_json && chr == '}') {
             parsing_finished = true;
-            json.insert({current_key, current_value});
+            json[current_key] = current_value;
         }
     }
+
+    if (!parsing_finished || parsing_error)
+        throw std::runtime_error("invalid json");
 
     return json;
 }
@@ -83,7 +90,7 @@ int main(int argc, char* argv[]) {
 
     for(const auto& elem : json)
     {
-        std::cout << elem.first << " " << elem.second << "\n";
+        std::cout << elem.first << ": " << elem.second << "\n";
     }
     return 0;
 }
