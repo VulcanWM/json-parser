@@ -2,6 +2,7 @@
 #define JSON_PARSER_MAIN_H
 #include <map>
 #include <string>
+#include <variant>
 
 class JSONParser {
 private:
@@ -10,7 +11,7 @@ public:
     JSONParser(std::string f);
     JSONParser();
 
-    std::map<std::string, std::string> read();
+    std::map<std::string, std::variant<std::string, bool, std::nullptr_t>> read();
 };
 
 enum class State {
@@ -19,6 +20,7 @@ enum class State {
     InKey,              // inside "key"
     ExpectColon,        // after key
     ExpectValue,        // after :
+    InLiteral,             // after : and started typing true or false
     InValue,            // inside "value"
     ExpectCommaOrEnd,   // after value
     End,
