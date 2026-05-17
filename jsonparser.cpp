@@ -7,11 +7,11 @@ JSONParser::JSONParser(std::string f) : file_name(std::move(f)) {}
 
 JSONParser::JSONParser() : JSONParser("input.json") {}
 
-std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> JSONParser::read() {
+std::map<std::string, json_value> JSONParser::read() {
     std::ifstream file(file_name);
 
     if (!file) throw std::runtime_error("failed to open file");
-    std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> json;
+    std::map<std::string, json_value> json;
     std::string current_key;
     std::string current_value;
     std::string number_value;
@@ -82,6 +82,8 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> J
                 }
                 else if (chr == '-' || std::isdigit(chr)) {
                     state = State::InNumber;
+                    has_dot = false;
+                    number_value.clear();
                     number_value.push_back(chr);
                 }
                 else state = State::Error;
@@ -91,11 +93,11 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> J
                     literal_index += 1;
                     if (literal_index == expected_literal.length()) {
                         if (expected_literal == "true")
-                            json[current_key] = true;
+                            json[current_key] = json_value{true};
                         else if (expected_literal == "false")
-                            json[current_key] = false;
+                            json[current_key] = json_value{false};
                         else if (expected_literal == "null") {
-                            json[current_key] = nullptr;
+                            json[current_key] = json_value{nullptr};
                         }
                         current_key.clear();
                         state = State::ExpectCommaOrEnd;
@@ -114,7 +116,7 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> J
                     number_value.push_back(chr);
                 }
                 else {
-                    json[current_key] = std::stod(number_value);
+                    json[current_key] = json_value{std::stod(number_value)};
                     current_key.clear();
                     number_value.clear();
 
@@ -134,7 +136,7 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> J
                     break;
                 }
                 if (chr == '"') {
-                    json[current_key] = current_value;
+                    json[current_key] = json_value{current_value};
                     current_key.clear();
                     current_value.clear();
                     state = State::ExpectCommaOrEnd;
