@@ -11,9 +11,7 @@ JSONParser::JSONParser() : JSONParser("input.json") {}
 std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> JSONParser::read() {
     std::ifstream file(file_name);
 
-    if (!file) {
-        throw std::runtime_error("failed to open file");
-    }
+    if (!file) throw std::runtime_error("failed to open file");
     std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> json;
     std::string current_key;
     std::string current_value;
@@ -31,26 +29,20 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> J
     char chr;
 
     while (file.get(chr) && state != State::End && state != State::Error) {
-        if (std::isspace(static_cast<unsigned char>(chr)) && state != State::InKey && state != State::InValue)
-            continue;
+        if (std::isspace(static_cast<unsigned char>(chr)) && state != State::InKey && state != State::InValue) continue;
 
         switch (state) {
             case State::Start:
-                if (chr == '{')
-                    state = State::ExpectKeyOrEnd;
-                else {
-                    state = State::Error;
-                }
+                if (chr == '{') state = State::ExpectKeyOrEnd;
+                else state = State::Error;
                 break;
             case State::ExpectKeyOrEnd:
-                if (chr == '}')
-                    state = State::End;
+                if (chr == '}') state = State::End;
                 else if (chr == '"') {
                     current_key.clear();
                     state = State::InKey;
                 }
-                else
-                    state = State::Error;
+                else state = State::Error;
                 break;
             case State::InKey:
                 if (escape) {
@@ -61,17 +53,12 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> J
                     escape = true;
                     continue;
                 }
-                if (chr == '"')
-                    state = State::ExpectColon;
-                else {
-                    current_key.push_back(chr);
-                }
+                if (chr == '"') state = State::ExpectColon;
+                else current_key.push_back(chr);
                 break;
             case State::ExpectColon:
-                if (chr == ':')
-                    state = State::ExpectValue;
-                else
-                    state = State::Error;
+                if (chr == ':') state = State::ExpectValue;
+                else state = State::Error;
                 break;
             case State::ExpectValue:
                 if (chr == '"') {
@@ -98,8 +85,7 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> J
                     state = State::InNumber;
                     number_value.push_back(chr);
                 }
-                else
-                    state = State::Error;
+                else state = State::Error;
                 break;
             case State::InLiteral:
                 if (literal_index < expected_literal.length() && expected_literal[literal_index] == chr) {
@@ -117,8 +103,7 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> J
                         literal_index = 0;
                     }
                 }
-                else
-                    state = State::Error;
+                else state = State::Error;
                 break;
             case State::InNumber:
                 if (std::isdigit(chr) || chr == '.') {
@@ -134,12 +119,9 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> J
                     current_key.clear();
                     number_value.clear();
 
-                    if (chr == ',')
-                        state = State::ExpectKeyOrEnd;
-                    else if (chr == '}')
-                        state = State::End;
-                    else
-                        state = State::Error;
+                    if (chr == ',') state = State::ExpectKeyOrEnd;
+                    else if (chr == '}') state = State::End;
+                    else state = State::Error;
                 }
                 break;
             case State::InValue:
@@ -158,23 +140,17 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> J
                     current_value.clear();
                     state = State::ExpectCommaOrEnd;
                 }
-                else {
-                    current_value.push_back(chr);
-                }
+                else current_value.push_back(chr);
                 break;
             case State::ExpectCommaOrEnd:
-                if (chr == ',')
-                    state = State::ExpectKeyOrEnd;
-                else if (chr == '}')
-                    state = State::End;
-                else
-                    state = State::Error;
+                if (chr == ',') state = State::ExpectKeyOrEnd;
+                else if (chr == '}') state = State::End;
+                else state = State::Error;
                 break;
         }
     }
 
-    if (state != State::End)
-        throw std::runtime_error("invalid json");
+    if (state != State::End) throw std::runtime_error("invalid json");
 
     return json;
 }
@@ -196,21 +172,10 @@ int main(int argc, char* argv[]) {
         {
             using T = std::decay_t<decltype(value)>;
 
-            if constexpr (std::is_same_v<T, std::string>)
-            {
-                std::cout << value;
-            }
-            else if constexpr (std::is_same_v<T, bool>)
-            {
-                std::cout << (value ? "true" : "false");
-            }
-            else if constexpr (std::is_same_v<T, std::nullptr_t>)
-            {
-                std::cout << "null";
-            }
-            else if constexpr (std::is_same_v<T, double>) {
-                std::cout << std::to_string(value);
-            }
+            if constexpr (std::is_same_v<T, std::string>) std::cout << value;
+            else if constexpr (std::is_same_v<T, bool>) std::cout << (value ? "true" : "false");
+            else if constexpr (std::is_same_v<T, std::nullptr_t>) std::cout << "null";
+            else if constexpr (std::is_same_v<T, double>) std::cout << std::to_string(value);
         }, elem.second);
 
         std::cout << "\n";
