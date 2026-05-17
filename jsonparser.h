@@ -1,5 +1,5 @@
-#ifndef JSON_PARSER_MAIN_H
-#define JSON_PARSER_MAIN_H
+#ifndef JSON_PARSER_JSONPARSER_H
+#define JSON_PARSER_JSONPARSER_H
 #include <map>
 #include <string>
 #include <variant>
@@ -28,4 +28,4 @@ enum class State {
     Error
 };
 
-#endif //JSON_PARSER_MAIN_H
+#endif //JSON_PARSER_JSONPARSER_H

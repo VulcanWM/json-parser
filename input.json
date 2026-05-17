@@ -1,7 +1,8 @@
 {
   "name": "hi \"hi\"",
-  "age": 5,
+  "age": 5.5,
   "address": "idk",
   "bool": true,
-  "none": null
+  "none": null,
+  "least-favourite-number": -50
 }
