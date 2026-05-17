@@ -1,1 +1,7 @@
-{"name": "hi \"hi\"", "age": "hi again", "address": "idk",}
+{
+  "name": "hi \"hi\"",
+  "age": 5,
+  "address": "idk",
+  "bool": true,
+  "none": null
+}
