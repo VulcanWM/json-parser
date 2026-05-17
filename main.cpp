@@ -2,23 +2,26 @@
 #include <utility>
 #include "main.h"
 #include <fstream>
+#include <string>
 
 JSONParser::JSONParser(std::string f) : file_name(std::move(f)) {}
 
 JSONParser::JSONParser() : JSONParser("input.json") {}
 
-std::map<std::string, std::variant<std::string, bool, std::nullptr_t>> JSONParser::read() {
+std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> JSONParser::read() {
     std::ifstream file(file_name);
 
     if (!file) {
         throw std::runtime_error("failed to open file");
     }
-    std::map<std::string, std::variant<std::string, bool, std::nullptr_t>> json;
+    std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> json;
     std::string current_key;
     std::string current_value;
+    std::string number_value;
 
     State state = State::Start;
     bool escape = false;
+    bool has_dot = false;
     int literal_index = 0;
     std::string true_literal = "true";
     std::string false_literal = "false";
@@ -52,7 +55,6 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t>> JSONParse
             case State::InKey:
                 if (escape) {
                     current_key.push_back(chr);
-                    escape = false;
                     break;
                 }
                 if (chr == '\\') {
@@ -74,6 +76,7 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t>> JSONParse
             case State::ExpectValue:
                 if (chr == '"') {
                     current_value.clear();
+                    escape = false;
                     state = State::InValue;
                 }
                 else if (chr == 't') {
@@ -90,6 +93,10 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t>> JSONParse
                     state = State::InLiteral;
                     expected_literal = null_literal;
                     literal_index = 1;
+                }
+                else if (chr == '-' || std::isdigit(chr)) {
+                    state = State::InNumber;
+                    number_value.push_back(chr);
                 }
                 else
                     state = State::Error;
@@ -112,6 +119,28 @@ std::map<std::string, std::variant<std::string, bool, std::nullptr_t>> JSONParse
                 }
                 else
                     state = State::Error;
+                break;
+            case State::InNumber:
+                if (std::isdigit(chr) || chr == '.') {
+                    if (chr == '.') {
+                        if (has_dot)
+                            state = State::Error;
+                        has_dot = true;
+                    }
+                    number_value.push_back(chr);
+                }
+                else {
+                    json[current_key] = std::stod(number_value);
+                    current_key.clear();
+                    number_value.clear();
+
+                    if (chr == ',')
+                        state = State::ExpectKeyOrEnd;
+                    else if (chr == '}')
+                        state = State::End;
+                    else
+                        state = State::Error;
+                }
                 break;
             case State::InValue:
                 if (escape) {
@@ -157,7 +186,7 @@ int main(int argc, char* argv[]) {
     }
 
     JSONParser j(argv[1]);
-    std::map<std::string, std::variant<std::string, bool, std::nullptr_t>> json = j.read();
+    std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> json = j.read();
 
     for (const auto& elem : json)
     {
@@ -178,6 +207,9 @@ int main(int argc, char* argv[]) {
             else if constexpr (std::is_same_v<T, std::nullptr_t>)
             {
                 std::cout << "null";
+            }
+            else if constexpr (std::is_same_v<T, double>) {
+                std::cout << std::to_string(value);
             }
         }, elem.second);
 

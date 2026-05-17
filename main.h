@@ -11,7 +11,7 @@ public:
     JSONParser(std::string f);
     JSONParser();
 
-    std::map<std::string, std::variant<std::string, bool, std::nullptr_t>> read();
+    std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> read();
 };
 
 enum class State {
@@ -20,7 +20,8 @@ enum class State {
     InKey,              // inside "key"
     ExpectColon,        // after key
     ExpectValue,        // after :
-    InLiteral,             // after : and started typing true or false
+    InLiteral,          // after : and started typing true or false
+    InNumber,           // after : and started typing a number
     InValue,            // inside "value"
     ExpectCommaOrEnd,   // after value
     End,
