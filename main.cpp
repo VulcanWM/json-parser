@@ -1,6 +1,6 @@
 #include <iostream>
 #include <utility>
-#include "jsonparser.cpp"
+#include "jsonparser.h"
 #include <string>
 
 int main(int argc, char* argv[]) {
@@ -10,21 +10,27 @@ int main(int argc, char* argv[]) {
     }
 
     JSONParser j(argv[1]);
-    std::map<std::string, std::variant<std::string, bool, std::nullptr_t, double>> json = j.read();
+    std::map<std::string, json_value> json = j.read();
 
-    for (const auto& elem : json)
-    {
-        std::cout << elem.first << ": ";
+    for (const auto& [key, val] : json) {
+        std::cout << key << ": ";
 
-        std::visit([](const auto& value)
-        {
+        std::visit([&](const auto& value) {
             using T = std::decay_t<decltype(value)>;
 
-            if constexpr (std::is_same_v<T, std::string>) std::cout << value;
-            else if constexpr (std::is_same_v<T, bool>) std::cout << (value ? "true" : "false");
-            else if constexpr (std::is_same_v<T, std::nullptr_t>) std::cout << "null";
-            else if constexpr (std::is_same_v<T, double>) std::cout << std::to_string(value);
-        }, elem.second);
+            if constexpr (std::is_same_v<T, std::string>) {
+                std::cout << value;
+            }
+            else if constexpr (std::is_same_v<T, bool>) {
+                std::cout << (value ? "true" : "false");
+            }
+            else if constexpr (std::is_same_v<T, std::nullptr_t>) {
+                std::cout << "null";
+            }
+            else if constexpr (std::is_same_v<T, double>) {
+                std::cout << value;
+            }
+        }, val.value);
 
         std::cout << "\n";
     }

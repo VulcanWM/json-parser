@@ -18,6 +18,14 @@ struct json_value {
     >;
 
     value_t value;
+
+    json_value() = default;
+
+    json_value(const std::string& v) : value(v) {}
+    json_value(bool v) : value(v) {}
+    json_value(std::nullptr_t v) : value(v) {}
+    json_value(double v) : value(v) {}
+    json_value(const json_array& v) : value(v) {}
 };
 
 class JSONParser {

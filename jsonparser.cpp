@@ -93,11 +93,11 @@ std::map<std::string, json_value> JSONParser::read() {
                     literal_index += 1;
                     if (literal_index == expected_literal.length()) {
                         if (expected_literal == "true")
-                            json[current_key] = json_value{true};
+                            json[current_key] = true;
                         else if (expected_literal == "false")
-                            json[current_key] = json_value{false};
+                            json[current_key] = false;
                         else if (expected_literal == "null") {
-                            json[current_key] = json_value{nullptr};
+                            json[current_key] = nullptr;
                         }
                         current_key.clear();
                         state = State::ExpectCommaOrEnd;
@@ -116,7 +116,7 @@ std::map<std::string, json_value> JSONParser::read() {
                     number_value.push_back(chr);
                 }
                 else {
-                    json[current_key] = json_value{std::stod(number_value)};
+                    json[current_key] = std::stod(number_value);
                     current_key.clear();
                     number_value.clear();
 
