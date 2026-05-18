@@ -1,8 +1,8 @@
 {
-  "name": "hi \"hi\"",
   "age": 5.5,
   "address": "idk",
   "bool": true,
   "none": null,
-  "least-favourite-number": -50
+  "least-favourite-number": -50,
+  "idk": [1, 2, 3, [true, false]]
 }

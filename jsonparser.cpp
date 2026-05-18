@@ -2,6 +2,8 @@
 #include "jsonparser.h"
 #include <fstream>
 #include <string>
+#include <cctype>
+#include <stdexcept>
 
 JSONParser::JSONParser(std::string f) : file_name(std::move(f)) {}
 
@@ -24,10 +26,12 @@ std::map<std::string, json_value> JSONParser::read() {
     std::string false_literal = "false";
     std::string null_literal = "null";
     std::string expected_literal;
+    std::vector<json_array*> array_stack;
 
     char chr;
 
     while (file.get(chr) && state != State::End && state != State::Error) {
+
         if (std::isspace(static_cast<unsigned char>(chr)) && state != State::InKey && state != State::InValue) continue;
 
         switch (state) {
@@ -86,22 +90,91 @@ std::map<std::string, json_value> JSONParser::read() {
                     number_value.clear();
                     number_value.push_back(chr);
                 }
+                else if (chr == '[') {
+                    if (array_stack.empty()) {
+                        json[current_key] = json_array{};
+                        array_stack.push_back(&std::get<json_array>(json[current_key].value));
+                        current_key.clear();
+                    } else {
+                        array_stack.back()->emplace_back(json_array{});
+                        json_array& new_array =
+                            std::get<json_array>(array_stack.back()->back().value);
+                        array_stack.push_back(&new_array);
+                    }
+
+                    state = State::InArray;
+                }
+                else state = State::Error;
+                break;
+            case State::InArray:
+                if (chr == '"') {
+                    current_value.clear();
+                    escape = false;
+                    state = State::InValue;
+                }
+                else if (chr == 't') {
+                    state = State::InLiteral;
+                    expected_literal = true_literal;
+                    literal_index = 1;
+                }
+                else if (chr == 'f') {
+                    state = State::InLiteral;
+                    expected_literal = false_literal;
+                    literal_index = 1;
+                }
+                else if (chr == 'n') {
+                    state = State::InLiteral;
+                    expected_literal = null_literal;
+                    literal_index = 1;
+                }
+                else if (chr == '-' || std::isdigit(chr)) {
+                    state = State::InNumber;
+                    has_dot = false;
+                    number_value.clear();
+                    number_value.push_back(chr);
+                }
+                else if (chr == '[') {
+                    array_stack.back()->emplace_back(json_array{});
+                    json_array& new_array =
+                        std::get<json_array>(array_stack.back()->back().value);
+                    array_stack.push_back(&new_array);
+                    state = State::InArray;
+                }
+                else if (chr == ']') {
+                    array_stack.pop_back();
+                    if (array_stack.empty())
+                        state = State::ExpectCommaOrEnd;
+                    else
+                        state = State::ExpectCloseBracketOrComma;
+                }
                 else state = State::Error;
                 break;
             case State::InLiteral:
                 if (literal_index < expected_literal.length() && expected_literal[literal_index] == chr) {
                     literal_index += 1;
                     if (literal_index == expected_literal.length()) {
-                        if (expected_literal == "true")
-                            json[current_key] = true;
-                        else if (expected_literal == "false")
-                            json[current_key] = false;
-                        else if (expected_literal == "null") {
-                            json[current_key] = nullptr;
+                        if (array_stack.empty()){
+                            if (expected_literal == "true")
+                                json[current_key] = true;
+                            else if (expected_literal == "false")
+                                json[current_key] = false;
+                            else if (expected_literal == "null") {
+                                json[current_key] = nullptr;
+                            }
+                            current_key.clear();
+                            state = State::ExpectCommaOrEnd;
+                            literal_index = 0;
+                        } else {
+                            if (expected_literal == "true")
+                                array_stack.back()->emplace_back(true);
+                            else if (expected_literal == "false")
+                                array_stack.back()->emplace_back(false);
+                            else if (expected_literal == "null") {
+                                array_stack.back()->emplace_back(nullptr);
+                            }
+                            state = State::ExpectCloseBracketOrComma;
+                            literal_index = 0;
                         }
-                        current_key.clear();
-                        state = State::ExpectCommaOrEnd;
-                        literal_index = 0;
                     }
                 }
                 else state = State::Error;
@@ -116,13 +189,33 @@ std::map<std::string, json_value> JSONParser::read() {
                     number_value.push_back(chr);
                 }
                 else {
-                    json[current_key] = std::stod(number_value);
-                    current_key.clear();
-                    number_value.clear();
+                    if (array_stack.empty()) {
+                        json[current_key] = std::stod(number_value);
+                        current_key.clear();
+                        number_value.clear();
 
-                    if (chr == ',') state = State::ExpectKeyOrEnd;
-                    else if (chr == '}') state = State::End;
-                    else state = State::Error;
+                        if (chr == ',') state = State::ExpectKeyOrEnd;
+                        else if (chr == '}') state = State::End;
+                        else state = State::Error;
+                    } else {
+                        array_stack.back()->emplace_back(std::stod(number_value));
+                        number_value.clear();
+
+                        if (chr == ',') {
+                            state = State::InArray;
+                        }
+                        else if (chr == ']') {
+                            array_stack.pop_back();
+
+                            if (array_stack.empty())
+                                state = State::ExpectCommaOrEnd;
+                            else
+                                state = State::ExpectCloseBracketOrComma;
+                        }
+                        else {
+                            state = State::Error;
+                        }
+                    }
                 }
                 break;
             case State::InValue:
@@ -136,12 +229,27 @@ std::map<std::string, json_value> JSONParser::read() {
                     break;
                 }
                 if (chr == '"') {
-                    json[current_key] = json_value{current_value};
-                    current_key.clear();
-                    current_value.clear();
-                    state = State::ExpectCommaOrEnd;
+                    if (array_stack.empty()){
+                        json[current_key] = json_value{current_value};
+                        current_key.clear();
+                        current_value.clear();
+                        state = State::ExpectCommaOrEnd;
+                    } else {
+                        array_stack.back()->emplace_back(current_value);
+                        state = State::ExpectCloseBracketOrComma;
+                    }
                 }
                 else current_value.push_back(chr);
+                break;
+            case State::ExpectCloseBracketOrComma:
+                if (chr == ']') {
+                    array_stack.pop_back();
+                    if (array_stack.empty())
+                        state = State::ExpectCommaOrEnd;
+                    else
+                        state = State::ExpectCloseBracketOrComma;
+                } else if (chr == ',') state = State::InArray;
+                else state = State::Error;
                 break;
             case State::ExpectCommaOrEnd:
                 if (chr == ',') state = State::ExpectKeyOrEnd;

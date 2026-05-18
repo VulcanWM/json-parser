@@ -6,7 +6,7 @@
 
 struct json_value;
 
-using json_array = std::vector<std::shared_ptr<json_value>>;
+using json_array = std::vector<json_value>;
 
 struct json_value {
     using value_t = std::variant<
@@ -44,10 +44,12 @@ enum class State {
     InKey,              // inside "key"
     ExpectColon,        // after key
     ExpectValue,        // after :
+    InArray,            // after [
     InLiteral,          // after : and started typing true or false
     InNumber,           // after : and started typing a number
     InValue,            // inside "value"
     ExpectCommaOrEnd,   // after value
+    ExpectCloseBracketOrComma,
     End,
     Error
 };
