@@ -1,3 +1,5 @@
+## JSON Parser
+
 Do `g++ -std=c++17 main.cpp jsonparser.cpp -o program` to install the program.
 
 Then do `./program [json file name]` to execute.
