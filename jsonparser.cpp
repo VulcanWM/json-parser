@@ -2,7 +2,6 @@
 #include "jsonparser.h"
 #include <fstream>
 #include <string>
-#include <cctype>
 #include <stdexcept>
 
 JSONParser::JSONParser(std::string f) : file_name(std::move(f)) {}
@@ -28,16 +27,32 @@ std::map<std::string, json_value> JSONParser::read() {
     std::string expected_literal;
     std::vector<json_array*> array_stack;
 
+    int line = 1;
+    int column = 1;
+    std::string error;
+
     char chr;
 
     while (file.get(chr) && state != State::End && state != State::Error) {
+        int current_line = line;
+        int current_column = column;
+
+        if (chr == '\n') {
+            line++;
+            column = 1;
+        } else {
+            column++;
+        }
 
         if (std::isspace(static_cast<unsigned char>(chr)) && state != State::InKey && state != State::InValue) continue;
 
         switch (state) {
             case State::Start:
                 if (chr == '{') state = State::ExpectKeyOrEnd;
-                else state = State::Error;
+                else {
+                    state = State::Error;
+                    error = "at line " + std::to_string(current_line) + ", column " + std::to_string(current_column) + ". expected { but found " + chr;
+                }
                 break;
             case State::ExpectKeyOrEnd:
                 if (chr == '}') state = State::End;
@@ -45,7 +60,10 @@ std::map<std::string, json_value> JSONParser::read() {
                     current_key.clear();
                     state = State::InKey;
                 }
-                else state = State::Error;
+                else {
+                    state = State::Error;
+                    error = "at line " + std::to_string(current_line) + ", column " + std::to_string(current_column) + ". expected , or } but found " + chr;
+                }
                 break;
             case State::InKey:
                 if (escape) {
@@ -61,7 +79,10 @@ std::map<std::string, json_value> JSONParser::read() {
                 break;
             case State::ExpectColon:
                 if (chr == ':') state = State::ExpectValue;
-                else state = State::Error;
+                else {
+                    state = State::Error;
+                    error = "at line " + std::to_string(current_line) + ", column " + std::to_string(current_column) + ". expected : but found " + chr;
+                }
                 break;
             case State::ExpectValue:
                 if (chr == '"') {
@@ -104,7 +125,10 @@ std::map<std::string, json_value> JSONParser::read() {
 
                     state = State::InArray;
                 }
-                else state = State::Error;
+                else {
+                    state = State::Error;
+                    error = "at line " + std::to_string(current_line) + ", column " + std::to_string(current_column) + ". expected object value but found " + chr;
+                }
                 break;
             case State::InArray:
                 if (chr == '"') {
@@ -147,7 +171,10 @@ std::map<std::string, json_value> JSONParser::read() {
                     else
                         state = State::ExpectCloseBracketOrComma;
                 }
-                else state = State::Error;
+                else {
+                    state = State::Error;
+                    error = "at line " + std::to_string(current_line) + ", column " + std::to_string(current_column) + ". expected element in array but found " + chr;
+                }
                 break;
             case State::InLiteral:
                 if (literal_index < expected_literal.length() && expected_literal[literal_index] == chr) {
@@ -177,13 +204,18 @@ std::map<std::string, json_value> JSONParser::read() {
                         }
                     }
                 }
-                else state = State::Error;
+                else {
+                    state = State::Error;
+                    error = "at line " + std::to_string(current_line) + ", column " + std::to_string(current_column) + ". expected literal but found " + chr;
+                }
                 break;
             case State::InNumber:
                 if (std::isdigit(chr) || chr == '.') {
                     if (chr == '.') {
-                        if (has_dot)
+                        if (has_dot) {
                             state = State::Error;
+                            error = "at line " + std::to_string(current_line) + ", column " + std::to_string(current_column) + ". expected number but found .";
+                        }
                         has_dot = true;
                     }
                     number_value.push_back(chr);
@@ -196,7 +228,10 @@ std::map<std::string, json_value> JSONParser::read() {
 
                         if (chr == ',') state = State::ExpectKeyOrEnd;
                         else if (chr == '}') state = State::End;
-                        else state = State::Error;
+                        else {
+                            state = State::Error;
+                            error = "at line " + std::to_string(current_line) + ", column " + std::to_string(current_column) + ". expected number or , or } but found " + chr;
+                        }
                     } else {
                         array_stack.back()->emplace_back(std::stod(number_value));
                         number_value.clear();
@@ -214,6 +249,7 @@ std::map<std::string, json_value> JSONParser::read() {
                         }
                         else {
                             state = State::Error;
+                            error = "at line " + std::to_string(current_line) + ", column " + std::to_string(current_column) + ". expected number or , or ] but found " + chr;
                         }
                     }
                 }
@@ -249,12 +285,18 @@ std::map<std::string, json_value> JSONParser::read() {
                     else
                         state = State::ExpectCloseBracketOrComma;
                 } else if (chr == ',') state = State::InArray;
-                else state = State::Error;
+                else {
+                    state = State::Error;
+                    error = "at line " + std::to_string(current_line) + ", column " + std::to_string(current_column) + ". expected , or ] but found " + chr;
+                }
                 break;
             case State::ExpectCommaOrEnd:
                 if (chr == ',') state = State::ExpectKeyOrEnd;
                 else if (chr == '}') state = State::End;
-                else state = State::Error;
+                else {
+                    state = State::Error;
+                    error = "at line " + std::to_string(current_line) + ", column " + std::to_string(current_column) + ". expected , or } but found " + chr;
+                }
                 break;
             case State::End:
             case State::Error:
@@ -262,7 +304,8 @@ std::map<std::string, json_value> JSONParser::read() {
         }
     }
 
-    if (state != State::End) throw std::runtime_error("invalid json");
+    if (state == State::Error) throw std::runtime_error(error);
+    if (state != State::End) throw std::runtime_error("file did not end properly");
 
     return json;
 }
